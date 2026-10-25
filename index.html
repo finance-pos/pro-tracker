@@ -1,0 +1,985 @@
+<!DOCTYPE html>
+<html lang="km">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>ARCUS X ENTROPY - Pro Tracker</title>
+  <script src="https://cdn.tailwindcss.com"></script>
+  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&display=swap" rel="stylesheet">
+  <link rel="manifest" href="manifest.json">
+<meta name="theme-color" content="#0B0E14">
+<script>
+  if ('serviceWorker' in navigator) {
+    window.addEventListener('load', () => {
+      navigator.serviceWorker.register('./sw.js')
+        .then((reg) => console.log('Service Worker registered!', reg))
+        .catch((err) => console.log('Service Worker registration failed:', err));
+    });
+  }
+</script>
+
+  <style>
+    body {
+      font-family: 'Inter', system-ui, -apple-system, sans-serif;
+      background-color: #0B0E14;
+      color: #E6EDF3;
+    }
+    /* Custom Scrollbars */
+    ::-webkit-scrollbar {
+      width: 6px;
+      height: 6px;
+    }
+    ::-webkit-scrollbar-track {
+      background: #0B0E14;
+    }
+    ::-webkit-scrollbar-thumb {
+      background: #30363D;
+      border-radius: 4px;
+    }
+    .hide-scrollbar::-webkit-scrollbar {
+      display: none;
+    }
+    .hide-scrollbar {
+      -ms-overflow-style: none;
+      scrollbar-width: none;
+    }
+  </style>
+</head>
+<body class="min-h-screen flex justify-center selection:bg-blue-600 selection:text-white">
+
+  <div class="w-full max-w-2xl bg-[#0B0E14] min-h-screen flex flex-col border-x border-[#1F293D] shadow-2xl">
+    
+    <!-- Header -->
+    <header class="p-4 flex justify-between items-center border-b border-[#1F293D] sticky top-0 bg-[#0B0E14]/90 backdrop-blur-md z-10">
+      <div>
+        <h1 class="text-white text-lg font-bold tracking-wider">ARCUS X ENTROPY</h1>
+        <p class="text-[#9CA3AF] text-xs mt-0.5">Pro Tracker (UTC+7 Cambodia Time)</p>
+      </div>
+      <button id="primaryAddBtn" onclick="handlePrimaryAddClick()" class="bg-[#3B82F6] hover:bg-blue-600 active:scale-95 text-white font-bold text-xs px-3.5 py-2 rounded-lg transition-all shadow-md">
+        + Add Trade
+      </button>
+    </header>
+
+    <!-- Navigation Tabs -->
+    <nav class="flex bg-[#161B22] p-1.5 mx-4 mt-4 rounded-xl border border-[#30363D] gap-1">
+      <button onclick="switchTab('trades')" id="tab-trades" class="flex-1 py-2 text-center rounded-lg text-xs font-bold transition-all text-white bg-[#3B82F6]">
+        📊 Trades
+      </button>
+      <button onclick="switchTab('fees')" id="tab-fees" class="flex-1 py-2 text-center rounded-lg text-xs font-bold transition-all text-[#8B949E] hover:text-white">
+        💸 Fees
+      </button>
+      <button onclick="switchTab('points')" id="tab-points" class="flex-1 py-2 text-center rounded-lg text-xs font-bold transition-all text-[#8B949E] hover:text-white">
+        ⭐ Points
+      </button>
+      <button onclick="switchTab('trash')" id="tab-trash" class="flex-1 py-2 text-center rounded-lg text-xs font-bold transition-all text-[#8B949E] hover:text-white">
+        🗑️ Trash
+      </button>
+    </nav>
+
+    <!-- Main Content Container -->
+    <main class="flex-1 p-4">
+      
+      <!-- TAB 1: TRADES -->
+      <section id="view-trades" class="space-y-4">
+        <!-- Time Filter -->
+        <div class="flex justify-center gap-2 mb-3">
+          <button onclick="setTimeFilter('1d')" id="filter-1d" class="px-5 py-1.5 rounded-full bg-[#1F293D] text-[#8B949E] text-xs font-semibold hover:text-white transition-all">1D</button>
+          <button onclick="setTimeFilter('7d')" id="filter-7d" class="px-5 py-1.5 rounded-full bg-[#3B82F6] text-white text-xs font-semibold transition-all">7D</button>
+          <button onclick="setTimeFilter('30d')" id="filter-30d" class="px-5 py-1.5 rounded-full bg-[#1F293D] text-[#8B949E] text-xs font-semibold hover:text-white transition-all">30D</button>
+        </div>
+
+        <!-- Combined Summary -->
+        <div class="bg-[#161B22] rounded-2xl p-4 border border-[#30363D] shadow-sm">
+          <h2 id="summaryTitle" class="text-[#F3F4F6] text-sm font-bold mb-3">⚡ Combined Summary (7D)</h2>
+          <div class="grid grid-cols-2 gap-2.5">
+            <div class="bg-[#21262D] p-3 rounded-xl border border-[#30363D]/50">
+              <span class="text-[#8B949E] text-[11px] block">Total Volume</span>
+              <span id="stat-overall-volume" class="text-[#58A6FF] text-base font-bold mt-1 block">$0</span>
+            </div>
+            <div class="bg-[#21262D] p-3 rounded-xl border border-[#30363D]/50">
+              <span class="text-[#8B949E] text-[11px] block">Win Rate</span>
+              <span id="stat-overall-winrate" class="text-[#2EA043] text-base font-bold mt-1 block">0.0% (0/0)</span>
+            </div>
+            <div class="bg-[#21262D] p-3 rounded-xl border border-[#30363D]/50">
+              <span class="text-[#8B949E] text-[11px] block">Total P&L (USD)</span>
+              <span id="stat-overall-pnl" class="text-[#3FB950] text-base font-bold mt-1 block">$0.00</span>
+            </div>
+            <div class="bg-[#21262D] p-3 rounded-xl border border-[#30363D]/50">
+              <span class="text-[#8B949E] text-[11px] block">Total Fees Paid</span>
+              <span id="stat-overall-fees" class="text-[#F85149] text-base font-bold mt-1 block">$0.00</span>
+            </div>
+          </div>
+        </div>
+
+        <!-- Arcus Summary -->
+        <div class="bg-[#161B22] rounded-2xl p-3.5 border border-[#30363D] space-y-1.5">
+          <div class="flex justify-between items-center mb-2">
+            <h3 class="text-white text-sm font-bold flex items-center gap-1.5">🔵 ARCUS</h3>
+            <span id="stat-arcus-winrate" class="text-[#58A6FF] text-xs font-bold">Win Rate: 0.0%</span>
+          </div>
+          <div class="flex justify-between text-xs"><span class="text-[#8B949E]">Volume:</span><span id="stat-arcus-volume" class="text-[#E6EDF3] font-medium">$0</span></div>
+          <div class="flex justify-between text-xs"><span class="text-[#8B949E]">P&L:</span><span id="stat-arcus-pnl" class="text-[#3FB950] font-medium">$0.00</span></div>
+          <div class="flex justify-between text-xs"><span class="text-[#8B949E]">Fees (Taker 0.025% / Maker 0%):</span><span id="stat-arcus-fees" class="text-[#E6EDF3] font-medium">$0.00</span></div>
+        </div>
+
+        <!-- Entropy Summary -->
+        <div class="bg-[#161B22] rounded-2xl p-3.5 border border-[#30363D] space-y-1.5">
+          <div class="flex justify-between items-center mb-2">
+            <h3 class="text-white text-sm font-bold flex items-center gap-1.5">🟣 ENTROPY</h3>
+            <span id="stat-entropy-winrate" class="text-[#A371F7] text-xs font-bold">Win Rate: 0.0%</span>
+          </div>
+          <div class="flex justify-between text-xs"><span class="text-[#8B949E]">Volume:</span><span id="stat-entropy-volume" class="text-[#E6EDF3] font-medium">$0</span></div>
+          <div class="flex justify-between text-xs"><span class="text-[#8B949E]">P&L:</span><span id="stat-entropy-pnl" class="text-[#3FB950] font-medium">$0.00</span></div>
+          <div class="flex justify-between text-xs"><span class="text-[#8B949E]">Fees (Taker 0.009% / Maker 0.003%):</span><span id="stat-entropy-fees" class="text-[#E6EDF3] font-medium">$0.00</span></div>
+        </div>
+
+        <!-- History Header & Logs List -->
+        <div>
+          <h3 class="text-[#F3F4F6] text-sm font-bold my-3">📅 ប្រវត្តិកត់ត្រា (Logs)</h3>
+          <div id="trade-logs-container" class="space-y-2.5">
+            <!-- Dynamic Trade Logs -->
+          </div>
+        </div>
+      </section>
+
+      <!-- TAB 2: FEES TABLE -->
+      <section id="view-fees" class="space-y-5 hidden">
+        <h2 class="text-[#F3F4F6] text-sm font-bold">💸 តារាងចំណាយ Fees (ម៉ោង UTC+7 កម្ពុជា)</h2>
+
+        <!-- Arcus Fees Table -->
+        <div>
+          <h3 class="text-[#58A6FF] text-xs font-bold mb-2">🔵 Arcus Fees Table</h3>
+          <div class="bg-[#161B22] rounded-xl border border-[#30363D] overflow-hidden text-xs">
+            <div class="flex bg-[#21262D] p-2.5 font-bold text-white text-center border-b border-[#30363D]">
+              <div class="flex-1 text-left">រយៈពេល</div>
+              <div class="flex-1">Volume ($)</div>
+              <div class="flex-1">Fee ($)</div>
+            </div>
+            <div class="flex p-2.5 items-center border-b border-[#30363D]">
+              <div class="flex-1"><div class="text-[#8B949E]">ប្រចាំថ្ងៃ (Daily)</div><div class="text-[#6B7280] text-[9px]">UTC+7 Standard</div></div>
+              <div id="fee-arcus-daily-vol" class="flex-1 text-center text-[#8B949E]">$0</div>
+              <div id="fee-arcus-daily-fee" class="flex-1 text-center text-[#3FB950] font-bold">$0.00</div>
+            </div>
+            <div class="flex p-2.5 items-center border-b border-[#30363D]">
+              <div class="flex-1"><div class="text-[#8B949E]">ប្រចាំសប្តាហ៍ (Weekly)</div><div class="text-[#6B7280] text-[9px]">Wed @ 3:00 AM (UTC+7)</div></div>
+              <div id="fee-arcus-weekly-vol" class="flex-1 text-center text-[#8B949E]">$0</div>
+              <div id="fee-arcus-weekly-fee" class="flex-1 text-center text-[#3FB950] font-bold">$0.00</div>
+            </div>
+            <div class="flex p-2.5 items-center">
+              <div class="flex-1"><div class="text-[#8B949E]">ប្រចាំខែ (Monthly)</div><div class="text-[#6B7280] text-[9px]">1st @ 3:00 AM (UTC+7)</div></div>
+              <div id="fee-arcus-monthly-vol" class="flex-1 text-center text-[#8B949E]">$0</div>
+              <div id="fee-arcus-monthly-fee" class="flex-1 text-center text-[#3FB950] font-bold">$0.00</div>
+            </div>
+          </div>
+        </div>
+
+        <!-- Entropy Fees Table -->
+        <div>
+          <h3 class="text-[#A371F7] text-xs font-bold mb-2">🟣 Entropy Fees Table</h3>
+          <div class="bg-[#161B22] rounded-xl border border-[#30363D] overflow-hidden text-xs">
+            <div class="flex bg-[#21262D] p-2.5 font-bold text-white text-center border-b border-[#30363D]">
+              <div class="flex-1 text-left">រយៈពេល</div>
+              <div class="flex-1">Volume ($)</div>
+              <div class="flex-1">Fee ($)</div>
+            </div>
+            <div class="flex p-2.5 items-center border-b border-[#30363D]">
+              <div class="flex-1"><div class="text-[#8B949E]">ប្រចាំថ្ងៃ (Daily)</div><div class="text-[#6B7280] text-[9px]">UTC+7 Standard</div></div>
+              <div id="fee-entropy-daily-vol" class="flex-1 text-center text-[#8B949E]">$0</div>
+              <div id="fee-entropy-daily-fee" class="flex-1 text-center text-[#3FB950] font-bold">$0.00</div>
+            </div>
+            <div class="flex p-2.5 items-center border-b border-[#30363D]">
+              <div class="flex-1"><div class="text-[#8B949E]">ប្រចាំសប្តាហ៍ (Weekly)</div><div class="text-[#6B7280] text-[9px]">Wed @ 3:00 AM (UTC+7)</div></div>
+              <div id="fee-entropy-weekly-vol" class="flex-1 text-center text-[#8B949E]">$0</div>
+              <div id="fee-entropy-weekly-fee" class="flex-1 text-center text-[#3FB950] font-bold">$0.00</div>
+            </div>
+            <div class="flex p-2.5 items-center">
+              <div class="flex-1"><div class="text-[#8B949E]">ប្រចាំខែ (Monthly)</div><div class="text-[#6B7280] text-[9px]">1st @ 3:00 AM (UTC+7)</div></div>
+              <div id="fee-entropy-monthly-vol" class="flex-1 text-center text-[#8B949E]">$0</div>
+              <div id="fee-entropy-monthly-fee" class="flex-1 text-center text-[#3FB950] font-bold">$0.00</div>
+            </div>
+          </div>
+        </div>
+
+        <!-- Combined Total Fees Table -->
+        <div>
+          <h3 class="text-[#3FB950] text-xs font-bold mb-2">⚡ សរុបរួមទាំង២ platforms (Combined Total)</h3>
+          <div class="bg-[#161B22] rounded-xl border border-[#30363D] overflow-hidden text-xs">
+            <div class="flex bg-[#21262D] p-2.5 font-bold text-white text-center border-b border-[#30363D]">
+              <div class="flex-1 text-left">រយៈពេល</div>
+              <div class="flex-1">Total Vol ($)</div>
+              <div class="flex-1">Total Fee ($)</div>
+            </div>
+            <div class="flex p-2.5 items-center border-b border-[#30363D]">
+              <div class="flex-1"><div class="text-[#8B949E]">ប្រចាំថ្ងៃ (Daily)</div><div class="text-[#6B7280] text-[9px]">UTC+7 Standard</div></div>
+              <div id="fee-total-daily-vol" class="flex-1 text-center text-[#8B949E]">$0</div>
+              <div id="fee-total-daily-fee" class="flex-1 text-center text-[#3FB950] font-bold">$0.00</div>
+            </div>
+            <div class="flex p-2.5 items-center border-b border-[#30363D]">
+              <div class="flex-1"><div class="text-[#8B949E]">ប្រចាំសប្តាហ៍ (Weekly)</div><div class="text-[#6B7280] text-[9px]">Wed @ 3:00 AM (UTC+7)</div></div>
+              <div id="fee-total-weekly-vol" class="flex-1 text-center text-[#8B949E]">$0</div>
+              <div id="fee-total-weekly-fee" class="flex-1 text-center text-[#3FB950] font-bold">$0.00</div>
+            </div>
+            <div class="flex p-2.5 items-center">
+              <div class="flex-1"><div class="text-[#8B949E]">ប្រចាំខែ (Monthly)</div><div class="text-[#6B7280] text-[9px]">1st @ 3:00 AM (UTC+7)</div></div>
+              <div id="fee-total-monthly-vol" class="flex-1 text-center text-[#8B949E]">$0</div>
+              <div id="fee-total-monthly-fee" class="flex-1 text-center text-[#3FB950] font-bold">$0.00</div>
+            </div>
+          </div>
+        </div>
+      </section>
+
+      <!-- TAB 3: POINTS -->
+      <section id="view-points" class="space-y-4 hidden">
+        <h2 class="text-[#F3F4F6] text-sm font-bold">⭐ តារាង Points ប្រចាំសប្តាហ៍ (UTC+7 Timestamps)</h2>
+        <div id="points-container" class="space-y-2.5">
+          <!-- Dynamic Points Logs -->
+        </div>
+      </section>
+
+      <!-- TAB 4: TRASH BIN -->
+      <section id="view-trash" class="space-y-4 hidden">
+        <h2 class="text-[#F3F4F6] text-sm font-bold">🗑️ កំប៉ុងសំរាម (Recycle Bin - Restore Data)</h2>
+        <div id="trash-container" class="space-y-2.5">
+          <!-- Dynamic Trash Items -->
+        </div>
+      </section>
+    </main>
+  </div>
+
+  <!-- TRADE MODAL -->
+  <div id="tradeModal" class="fixed inset-0 bg-black/75 z-50 flex justify-center items-center p-4 hidden backdrop-blur-sm">
+    <div class="bg-[#161B22] border border-[#30363D] w-full max-w-md rounded-2xl p-5 max-h-[90vh] overflow-y-auto space-y-4 shadow-2xl">
+      <h3 id="modalTradeTitle" class="text-white font-bold text-base">📝 កត់ត្រា Trade ថ្មី (UTC+7)</h3>
+
+      <!-- Trade Outcome -->
+      <div>
+        <label class="text-[#8B949E] text-xs font-medium block mb-1">Trade Outcome (លទ្ធផល):</label>
+        <div class="flex gap-2">
+          <button type="button" onclick="setTradeFormOutcome('WIN')" id="form-outcome-win" class="flex-1 py-2 rounded-lg border border-[#2EA043] bg-[#238636] text-white font-bold text-xs transition-all">🟢 WIN</button>
+          <button type="button" onclick="setTradeFormOutcome('LOSS')" id="form-outcome-loss" class="flex-1 py-2 rounded-lg border border-[#30363D] bg-[#21262D] text-white font-bold text-xs transition-all">🔴 LOSS</button>
+        </div>
+      </div>
+
+      <!-- Platform Selector -->
+      <div>
+        <label class="text-[#8B949E] text-xs font-medium block mb-1">Platform:</label>
+        <div class="flex gap-2">
+          <button type="button" onclick="setTradeFormPlatform('arcus')" id="form-platform-arcus" class="flex-1 py-2 rounded-lg border border-[#58A6FF] bg-[#1F3A60] text-white font-bold text-xs transition-all">Arcus</button>
+          <button type="button" onclick="setTradeFormPlatform('entropy')" id="form-platform-entropy" class="flex-1 py-2 rounded-lg border border-[#30363D] bg-[#21262D] text-white font-bold text-xs transition-all">Entropy</button>
+        </div>
+      </div>
+
+      <!-- Order Type -->
+      <div>
+        <label class="text-[#8B949E] text-xs font-medium block mb-1">Order Type (Fees):</label>
+        <div class="flex gap-2">
+          <button type="button" onclick="setTradeFormOrderType('Maker')" id="form-ordertype-maker" class="flex-1 py-2 rounded-lg border border-[#58A6FF] bg-[#1F3A60] text-white font-bold text-xs transition-all">Maker</button>
+          <button type="button" onclick="setTradeFormOrderType('Taker')" id="form-ordertype-taker" class="flex-1 py-2 rounded-lg border border-[#30363D] bg-[#21262D] text-white font-bold text-xs transition-all">Taker</button>
+        </div>
+      </div>
+
+      <!-- Leverage -->
+      <div>
+        <label class="text-[#8B949E] text-xs font-medium block mb-1">Leverage (1x - 10x):</label>
+        <div id="leverage-options" class="flex gap-1.5 overflow-x-auto pb-1 hide-scrollbar">
+          <!-- Rendered via JS -->
+        </div>
+      </div>
+
+      <!-- Position Hold Duration -->
+      <div>
+        <label class="text-[#8B949E] text-xs font-medium block mb-1">Position Hold Duration:</label>
+        <div id="hold-options" class="flex gap-1.5 overflow-x-auto pb-1 hide-scrollbar">
+          <!-- Rendered via JS -->
+        </div>
+      </div>
+
+      <!-- Capital Input -->
+      <div>
+        <label class="text-[#8B949E] text-xs font-medium block mb-1">Capital Fund ($):</label>
+        <input type="number" id="inputCapital" placeholder="e.g. 3300" class="w-full bg-[#21262D] border border-[#30363D] text-white rounded-lg p-2.5 text-xs focus:outline-none focus:border-[#3B82F6]">
+      </div>
+
+      <!-- P&L Input -->
+      <div>
+        <label class="text-[#8B949E] text-xs font-medium block mb-1">P&L ($) (ទឹកប្រាក់ចំណេញ ឬខាត):</label>
+        <input type="number" id="inputPnL" placeholder="e.g. 150 ឬ -50" class="w-full bg-[#21262D] border border-[#30363D] text-white rounded-lg p-2.5 text-xs focus:outline-none focus:border-[#3B82F6]">
+      </div>
+
+      <!-- Select Asset -->
+      <div>
+        <label class="text-[#8B949E] text-xs font-medium block mb-1">Select Asset:</label>
+        <div id="asset-options" class="flex gap-1.5 overflow-x-auto pb-1 hide-scrollbar">
+          <!-- Rendered via JS -->
+        </div>
+      </div>
+
+      <!-- Modal Actions -->
+      <div class="flex justify-end gap-3 pt-3 border-t border-[#30363D]">
+        <button onclick="closeTradeModal()" class="px-4 py-2 text-[#9CA3AF] text-xs font-bold hover:text-white transition-all">បោះបង់</button>
+        <button onclick="saveTradeForm()" class="px-4 py-2 bg-[#3B82F6] hover:bg-blue-600 text-white rounded-lg text-xs font-bold transition-all shadow-md">កត់ត្រាទុក</button>
+      </div>
+    </div>
+  </div>
+
+  <!-- POINTS MODAL -->
+  <div id="pointModal" class="fixed inset-0 bg-black/75 z-50 flex justify-center items-center p-4 hidden backdrop-blur-sm">
+    <div class="bg-[#161B22] border border-[#30363D] w-full max-w-md rounded-2xl p-5 space-y-4 shadow-2xl">
+      <h3 class="text-white font-bold text-base">⭐ បញ្ចូល Points ប្រចាំសប្តាហ៍</h3>
+
+      <div>
+        <label class="text-[#8B949E] text-xs font-medium block mb-1">ឈ្មោះសប្តាហ៍:</label>
+        <input type="text" id="inputWeekName" value="Weekly Points" class="w-full bg-[#21262D] border border-[#30363D] text-white rounded-lg p-2.5 text-xs focus:outline-none focus:border-[#3B82F6]">
+      </div>
+
+      <div>
+        <label class="text-[#8B949E] text-xs font-medium block mb-1">Arcus Points:</label>
+        <input type="number" id="inputArcusPoints" placeholder="e.g. 1200" class="w-full bg-[#21262D] border border-[#30363D] text-white rounded-lg p-2.5 text-xs focus:outline-none focus:border-[#3B82F6]">
+      </div>
+
+      <div>
+        <label class="text-[#8B949E] text-xs font-medium block mb-1">Entropy Points:</label>
+        <input type="number" id="inputEntropyPoints" placeholder="e.g. 800" class="w-full bg-[#21262D] border border-[#30363D] text-white rounded-lg p-2.5 text-xs focus:outline-none focus:border-[#3B82F6]">
+      </div>
+
+      <div class="flex justify-end gap-3 pt-3 border-t border-[#30363D]">
+        <button onclick="closePointModal()" class="px-4 py-2 text-[#9CA3AF] text-xs font-bold hover:text-white transition-all">បោះបង់</button>
+        <button onclick="savePointsForm()" class="px-4 py-2 bg-[#3B82F6] hover:bg-blue-600 text-white rounded-lg text-xs font-bold transition-all shadow-md">រក្សាទុក</button>
+      </div>
+    </div>
+  </div>
+
+  <!-- CUSTOM CONFIRMATION / ALERT MODAL (Replaces window.alert / confirm) -->
+  <div id="alertModal" class="fixed inset-0 bg-black/80 z-[60] flex justify-center items-center p-4 hidden backdrop-blur-sm">
+    <div class="bg-[#161B22] border border-[#30363D] w-full max-w-sm rounded-2xl p-5 space-y-3 shadow-2xl text-center">
+      <h4 id="alertTitle" class="text-white font-bold text-base"></h4>
+      <p id="alertMessage" class="text-[#8B949E] text-xs leading-relaxed"></p>
+      <div id="alertActions" class="flex justify-center gap-3 pt-3">
+        <!-- Action Buttons Injected Here -->
+      </div>
+    </div>
+  </div>
+
+  <script>
+    // Asset Lists & Options
+    const assetsList = ['NVDIA', 'APPLE', 'GOOGLE', 'SNDK', 'DRAM', 'SPY500', 'HOOD', 'COIN', 'CRCL', 'SPCX'];
+    const holdDurations = ['1h', '4h', '8h', '12h', '24h', '2d'];
+    const leverages = ['1x', '2x', '3x', '5x', '10x'];
+
+    // Global State
+    let selectedTab = 'trades';
+    let selectedTime = '7d';
+
+    let tradeLogs = [];
+    let weeklyPoints = [];
+    let trashBin = [];
+
+    // Form State (Trade)
+    let editingId = null;
+    let formPlatform = 'arcus';
+    let formAsset = 'NVDIA';
+    let formHold = '4h';
+    let formOutcome = 'WIN';
+    let formLeverage = '3x';
+    let formOrderType = 'Maker';
+
+    // Mock Sample Data for Empty Storage Startup
+    const sampleTrades = [
+      {
+        id: "1710000000000",
+        dateTime: getLocalTimePlus7String(),
+        platform: "arcus",
+        capital: 1000,
+        leverage: "3x",
+        volume: 3000,
+        asset: "NVDIA",
+        holdDuration: "4h",
+        outcome: "WIN",
+        orderType: "Taker",
+        spend: 0.75,
+        pnl: 150
+      },
+      {
+        id: "1710000000001",
+        dateTime: getLocalTimePlus7String(),
+        platform: "entropy",
+        capital: 2000,
+        leverage: "5x",
+        volume: 10000,
+        asset: "APPLE",
+        holdDuration: "12h",
+        outcome: "WIN",
+        orderType: "Maker",
+        spend: 0.3,
+        pnl: 320
+      }
+    ];
+
+    const samplePoints = [
+      {
+        id: "1710000000002",
+        week: "Weekly Points",
+        arcus: 1500,
+        entropy: 950,
+        dateTime: getLocalTimePlus7String()
+      }
+    ];
+
+    // Initialization
+    window.onload = () => {
+      loadSavedData();
+      renderOptions();
+      updateUI();
+    };
+
+    // Helper: UTC+7 String Generator
+    function getLocalTimePlus7String() {
+      const now = new Date();
+      const localTime = new Date(now.getTime() + (7 * 60 * 60 * 1000) + (now.getTimezoneOffset() * 60 * 1000));
+      const dateStr = localTime.toISOString().split('T')[0];
+      const timeStr = localTime.toISOString().split('T')[1].substring(0, 5);
+      return `${dateStr} ${timeStr} (UTC+7)`;
+    }
+
+    // LocalStorage Logic
+    function loadSavedData() {
+      try {
+        const savedTrades = localStorage.getItem('@trade_logs_v13');
+        const savedPoints = localStorage.getItem('@weekly_points_v7');
+        const savedTrash = localStorage.getItem('@trash_bin_v2');
+
+        tradeLogs = savedTrades ? JSON.parse(savedTrades) : sampleTrades;
+        weeklyPoints = savedPoints ? JSON.parse(savedPoints) : samplePoints;
+        trashBin = savedTrash ? JSON.parse(savedTrash) : [];
+
+        if (!savedTrades) saveData(tradeLogs, weeklyPoints, trashBin);
+      } catch (e) {
+        console.error("Storage Load Error:", e);
+      }
+    }
+
+    function saveData(logs, points, trash) {
+      try {
+        if (logs !== null) localStorage.setItem('@trade_logs_v13', JSON.stringify(logs));
+        if (points !== null) localStorage.setItem('@weekly_points_v7', JSON.stringify(points));
+        if (trash !== null) localStorage.setItem('@trash_bin_v2', JSON.stringify(trash));
+      } catch (e) {
+        console.error("Storage Save Error:", e);
+      }
+    }
+
+    // Custom Alert / Confirm Box Replacement
+    function showAlert(title, message, isConfirm = false, onConfirm = null) {
+      const alertModal = document.getElementById('alertModal');
+      document.getElementById('alertTitle').innerText = title;
+      document.getElementById('alertMessage').innerText = message;
+      
+      const actionsContainer = document.getElementById('alertActions');
+      actionsContainer.innerHTML = '';
+
+      if (isConfirm) {
+        const cancelBtn = document.createElement('button');
+        cancelBtn.className = "px-4 py-1.5 text-[#9CA3AF] text-xs font-bold hover:text-white transition-all";
+        cancelBtn.innerText = "បោះបង់";
+        cancelBtn.onclick = () => alertModal.classList.add('hidden');
+
+        const confirmBtn = document.createElement('button');
+        confirmBtn.className = "px-4 py-1.5 bg-[#DA3633] hover:bg-red-700 text-white rounded-lg text-xs font-bold transition-all shadow-md";
+        confirmBtn.innerText = "លុប";
+        confirmBtn.onclick = () => {
+          alertModal.classList.add('hidden');
+          if (onConfirm) onConfirm();
+        };
+
+        actionsContainer.appendChild(cancelBtn);
+        actionsContainer.appendChild(confirmBtn);
+      } else {
+        const okBtn = document.createElement('button');
+        okBtn.className = "px-5 py-1.5 bg-[#3B82F6] hover:bg-blue-600 text-white rounded-lg text-xs font-bold transition-all shadow-md";
+        okBtn.innerText = "យល់ព្រម";
+        okBtn.onclick = () => alertModal.classList.add('hidden');
+        actionsContainer.appendChild(okBtn);
+      }
+
+      alertModal.classList.remove('hidden');
+    }
+
+    // Tab Navigation Switcher
+    function switchTab(tab) {
+      selectedTab = tab;
+      ['trades', 'fees', 'points', 'trash'].forEach(t => {
+        const tabBtn = document.getElementById(`tab-${t}`);
+        const viewSec = document.getElementById(`view-${t}`);
+        if (t === tab) {
+          tabBtn.className = "flex-1 py-2 text-center rounded-lg text-xs font-bold transition-all text-white bg-[#3B82F6]";
+          viewSec.classList.remove('hidden');
+        } else {
+          tabBtn.className = "flex-1 py-2 text-center rounded-lg text-xs font-bold transition-all text-[#8B949E] hover:text-white";
+          viewSec.classList.add('hidden');
+        }
+      });
+
+      // Update primary header action button label
+      const primaryBtn = document.getElementById('primaryAddBtn');
+      if (tab === 'points') {
+        primaryBtn.innerText = '+ Add Points';
+      } else if (tab === 'trash') {
+        primaryBtn.innerText = '🗑️ Trash Bin';
+      } else {
+        primaryBtn.innerText = '+ Add Trade';
+      }
+
+      updateUI();
+    }
+
+    function handlePrimaryAddClick() {
+      if (selectedTab === 'points') {
+        openPointModal();
+      } else if (selectedTab !== 'trash') {
+        openTradeModal();
+      }
+    }
+
+    // Time Filter Selection
+    function setTimeFilter(time) {
+      selectedTime = time;
+      ['1d', '7d', '30d'].forEach(t => {
+        const btn = document.getElementById(`filter-${t}`);
+        if (t === time) {
+          btn.className = "px-5 py-1.5 rounded-full bg-[#3B82F6] text-white text-xs font-semibold transition-all";
+        } else {
+          btn.className = "px-5 py-1.5 rounded-full bg-[#1F293D] text-[#8B949E] text-xs font-semibold hover:text-white transition-all";
+        }
+      });
+      document.getElementById('summaryTitle').innerText = `⚡ Combined Summary (${selectedTime.toUpperCase()})`;
+      updateUI();
+    }
+
+    // Logs Time Filter Logic
+    function getFilteredTradeLogs() {
+      const now = new Date();
+      return tradeLogs.filter(log => {
+        const logDate = new Date(log.dateTime.split(' ')[0]);
+        const diffDays = Math.ceil(Math.abs(now - logDate) / (1000 * 60 * 60 * 24));
+        if (selectedTime === '1d') return diffDays <= 1;
+        if (selectedTime === '7d') return diffDays <= 7;
+        if (selectedTime === '30d') return diffDays <= 30;
+        return true;
+      });
+    }
+
+    // Stats Calculation Engine
+    function calculateStats(logs) {
+      const total = logs.length;
+      const wins = logs.filter(l => l.outcome === 'WIN').length;
+      const winRate = total > 0 ? ((wins / total) * 100).toFixed(1) : '0.0';
+
+      const totals = logs.reduce((acc, item) => {
+        acc.volume += item.volume;
+        acc.spend += item.spend;
+        acc.pnl += item.pnl || 0;
+        return acc;
+      }, { volume: 0, spend: 0, pnl: 0 });
+
+      return { total, wins, winRate, ...totals };
+    }
+
+    // UI Rendering Controller
+    function updateUI() {
+      const filteredLogs = getFilteredTradeLogs();
+      const overallStats = calculateStats(filteredLogs);
+      const arcusStats = calculateStats(filteredLogs.filter(l => l.platform === 'arcus'));
+      const entropyStats = calculateStats(filteredLogs.filter(l => l.platform === 'entropy'));
+
+      // 1. Render Combined Summary
+      document.getElementById('stat-overall-volume').innerText = `$${overallStats.volume.toLocaleString()}`;
+      document.getElementById('stat-overall-winrate').innerText = `${overallStats.winRate}% (${overallStats.wins}/${overallStats.total})`;
+      
+      const pnlElem = document.getElementById('stat-overall-pnl');
+      pnlElem.innerText = `$${overallStats.pnl.toFixed(2)}`;
+      pnlElem.className = `text-base font-bold mt-1 block ${overallStats.pnl >= 0 ? 'text-[#3FB950]' : 'text-[#F85149]'}`;
+
+      document.getElementById('stat-overall-fees').innerText = `$${overallStats.spend.toFixed(2)}`;
+
+      // 2. Render Platform Summaries
+      document.getElementById('stat-arcus-winrate').innerText = `Win Rate: ${arcusStats.winRate}%`;
+      document.getElementById('stat-arcus-volume').innerText = `$${arcusStats.volume.toLocaleString()}`;
+      document.getElementById('stat-arcus-fees').innerText = `$${arcusStats.spend.toFixed(2)}`;
+      const arcusPnl = document.getElementById('stat-arcus-pnl');
+      arcusPnl.innerText = `$${arcusStats.pnl.toFixed(2)}`;
+      arcusPnl.className = `font-medium ${arcusStats.pnl >= 0 ? 'text-[#3FB950]' : 'text-[#F85149]'}`;
+
+      document.getElementById('stat-entropy-winrate').innerText = `Win Rate: ${entropyStats.winRate}%`;
+      document.getElementById('stat-entropy-volume').innerText = `$${entropyStats.volume.toLocaleString()}`;
+      document.getElementById('stat-entropy-fees').innerText = `$${entropyStats.spend.toFixed(2)}`;
+      const entropyPnl = document.getElementById('stat-entropy-pnl');
+      entropyPnl.innerText = `$${entropyStats.pnl.toFixed(2)}`;
+      entropyPnl.className = `font-medium ${entropyStats.pnl >= 0 ? 'text-[#3FB950]' : 'text-[#F85149]'}`;
+
+      // 3. Render Trade Logs List
+      const logsContainer = document.getElementById('trade-logs-container');
+      if (filteredLogs.length === 0) {
+        logsContainer.innerHTML = `<p class="text-[#6B7280] italic text-center py-4 text-xs">មិនទាន់មានទិន្នន័យកត់ត្រានៅឡើយទេ</p>`;
+      } else {
+        logsContainer.innerHTML = filteredLogs.map(log => `
+          <div class="bg-[#161B22] rounded-xl p-3 border border-[#30363D] space-y-2">
+            <div class="flex justify-between items-center">
+              <div class="flex items-center gap-1.5">
+                <span class="text-[10px] font-bold px-1.5 py-0.5 rounded text-white ${log.outcome === 'WIN' ? 'bg-[#238636]' : 'bg-[#DA3633]'}">${log.outcome}</span>
+                <span class="text-xs font-bold px-1.5 py-0.5 rounded ${log.platform === 'arcus' ? 'bg-[#1F3A60] text-[#58A6FF]' : 'bg-[#382559] text-[#A371F7]'}">
+                  ${log.platform.toUpperCase()} • ${log.asset}
+                </span>
+              </div>
+              <div class="flex items-center gap-3">
+                <button onclick="editTrade('${log.id}')" class="text-[#58A6FF] text-xs font-bold hover:underline">✏️ កែប្រែ</button>
+                <button onclick="deleteTrade('${log.id}')" class="text-[#F85149] text-xs font-bold hover:underline">🗑️ លុប</button>
+              </div>
+            </div>
+            <div class="text-[#8B949E] text-[10px]">🕒 ${log.dateTime}</div>
+            <div class="flex flex-wrap justify-between gap-2 text-xs text-[#8B949E] pt-1 border-t border-[#30363D]/40">
+              <span>Lev: <strong class="text-[#58A6FF]">${log.leverage}</strong></span>
+              <span>Type: <span class="text-[#E6EDF3]">${log.orderType}</span></span>
+              <span>Vol: <strong class="text-white">$${log.volume.toLocaleString()}</strong></span>
+              <span>P&L: <strong class="${log.pnl >= 0 ? 'text-[#3FB950]' : 'text-[#F85149]'}">$${log.pnl}</strong></span>
+              <span>Fee: <strong class="text-[#F85149]">$${log.spend.toFixed(3)}</strong></span>
+            </div>
+          </div>
+        `).join('');
+      }
+
+      // 4. Update Fees View Tables
+      ['daily', 'weekly', 'monthly'].forEach(period => {
+        document.getElementById(`fee-arcus-${period}-vol`).innerText = `$${arcusStats.volume.toLocaleString()}`;
+        document.getElementById(`fee-arcus-${period}-fee`).innerText = `$${arcusStats.spend.toFixed(2)}`;
+        
+        document.getElementById(`fee-entropy-${period}-vol`).innerText = `$${entropyStats.volume.toLocaleString()}`;
+        document.getElementById(`fee-entropy-${period}-fee`).innerText = `$${entropyStats.spend.toFixed(2)}`;
+
+        document.getElementById(`fee-total-${period}-vol`).innerText = `$${overallStats.volume.toLocaleString()}`;
+        document.getElementById(`fee-total-${period}-fee`).innerText = `$${overallStats.spend.toFixed(2)}`;
+      });
+
+      // 5. Render Points List
+      const pointsContainer = document.getElementById('points-container');
+      if (weeklyPoints.length === 0) {
+        pointsContainer.innerHTML = `<p class="text-[#6B7280] italic text-center py-4 text-xs">មិនទាន់មានទិន្នន័យ Points នៅឡើយទេ (សូមចុច + Add Points)</p>`;
+      } else {
+        pointsContainer.innerHTML = weeklyPoints.map(item => `
+          <div class="bg-[#161B22] rounded-xl p-3 border border-[#30363D] space-y-1.5">
+            <div class="flex justify-between items-center">
+              <span class="text-[#58A6FF] text-xs font-bold">${item.week}</span>
+              <button onclick="deletePoint('${item.id}')" class="text-[#F85149] text-xs font-bold hover:underline">🗑️ លុប</button>
+            </div>
+            <div class="text-[#8B949E] text-[10px]">🕒 ${item.dateTime}</div>
+            <div class="flex justify-between text-xs pt-1">
+              <span class="text-[#8B949E]">Arcus: <strong class="text-[#58A6FF]">+${item.arcus.toLocaleString()} Pts</strong></span>
+              <span class="text-[#8B949E]">Entropy: <strong class="text-[#A371F7]">+${item.entropy.toLocaleString()} Pts</strong></span>
+              <span class="text-[#3FB950] font-bold">សរុប: +${(item.arcus + item.entropy).toLocaleString()} Pts</span>
+            </div>
+          </div>
+        `).join('');
+      }
+
+      // 6. Render Trash Bin
+      const trashContainer = document.getElementById('trash-container');
+      if (trashBin.length === 0) {
+        trashContainer.innerHTML = `<p class="text-[#6B7280] italic text-center py-4 text-xs">គ្មានទិន្នន័យក្នុងកំប៉ុងសំរាមទេ</p>`;
+      } else {
+        trashContainer.innerHTML = trashBin.map(item => `
+          <div class="bg-[#161B22] rounded-xl p-3 border border-[#F85149]/40 space-y-1.5">
+            <div class="flex justify-between items-center">
+              <span class="text-[#F85149] text-xs font-bold">[${item.type}] ${item.week || item.asset || 'Item'}</span>
+              <div class="flex gap-3">
+                <button onclick="restoreFromTrash('${item.id}')" class="text-[#3FB950] text-xs font-bold hover:underline">♻️ ស្តារ (Restore)</button>
+                <button onclick="deleteForever('${item.id}')" class="text-[#F85149] text-xs font-bold hover:underline">❌ លុបស្ថាពរ</button>
+              </div>
+            </div>
+            <div class="text-[#8B949E] text-[10px]">🕒 ${item.dateTime || item.date || ''}</div>
+          </div>
+        `).join('');
+      }
+    }
+
+    // Modal Dynamic Option Renderers
+    function renderOptions() {
+      // Leverage Tags
+      const levContainer = document.getElementById('leverage-options');
+      levContainer.innerHTML = leverages.map(lev => `
+        <button type="button" onclick="setTradeFormLeverage('${lev}')" id="form-lev-${lev}" class="px-3 py-1.5 rounded-md border text-xs font-bold transition-all ${lev === formLeverage ? 'bg-[#3B82F6] border-[#3B82F6] text-white' : 'bg-[#21262D] border-[#30363D] text-[#8B949E]'}">
+          ${lev}
+        </button>
+      `).join('');
+
+      // Hold Duration Tags
+      const holdContainer = document.getElementById('hold-options');
+      holdContainer.innerHTML = holdDurations.map(dur => `
+        <button type="button" onclick="setTradeFormHold('${dur}')" id="form-hold-${dur}" class="px-3 py-1.5 rounded-md border text-xs font-bold transition-all ${dur === formHold ? 'bg-[#3B82F6] border-[#3B82F6] text-white' : 'bg-[#21262D] border-[#30363D] text-[#8B949E]'}">
+          ${dur}
+        </button>
+      `).join('');
+
+      // Asset Tags
+      const assetContainer = document.getElementById('asset-options');
+      assetContainer.innerHTML = assetsList.map(asset => `
+        <button type="button" onclick="setTradeFormAsset('${asset}')" id="form-asset-${asset}" class="px-3 py-1.5 rounded-md border text-xs font-bold transition-all ${asset === formAsset ? 'bg-[#3B82F6] border-[#3B82F6] text-white' : 'bg-[#21262D] border-[#30363D] text-[#8B949E]'}">
+          ${asset}
+        </button>
+      `).join('');
+    }
+
+    // Form Selectors State Updates
+    function setTradeFormOutcome(val) {
+      formOutcome = val;
+      const winBtn = document.getElementById('form-outcome-win');
+      const lossBtn = document.getElementById('form-outcome-loss');
+      if (val === 'WIN') {
+        winBtn.className = "flex-1 py-2 rounded-lg border border-[#2EA043] bg-[#238636] text-white font-bold text-xs transition-all";
+        lossBtn.className = "flex-1 py-2 rounded-lg border border-[#30363D] bg-[#21262D] text-white font-bold text-xs transition-all";
+      } else {
+        winBtn.className = "flex-1 py-2 rounded-lg border border-[#30363D] bg-[#21262D] text-white font-bold text-xs transition-all";
+        lossBtn.className = "flex-1 py-2 rounded-lg border border-[#F85149] bg-[#DA3633] text-white font-bold text-xs transition-all";
+      }
+    }
+
+    function setTradeFormPlatform(val) {
+      formPlatform = val;
+      const arcusBtn = document.getElementById('form-platform-arcus');
+      const entropyBtn = document.getElementById('form-platform-entropy');
+      if (val === 'arcus') {
+        arcusBtn.className = "flex-1 py-2 rounded-lg border border-[#58A6FF] bg-[#1F3A60] text-white font-bold text-xs transition-all";
+        entropyBtn.className = "flex-1 py-2 rounded-lg border border-[#30363D] bg-[#21262D] text-white font-bold text-xs transition-all";
+      } else {
+        arcusBtn.className = "flex-1 py-2 rounded-lg border border-[#30363D] bg-[#21262D] text-white font-bold text-xs transition-all";
+        entropyBtn.className = "flex-1 py-2 rounded-lg border border-[#A371F7] bg-[#382559] text-white font-bold text-xs transition-all";
+      }
+    }
+
+    function setTradeFormOrderType(val) {
+      formOrderType = val;
+      const makerBtn = document.getElementById('form-ordertype-maker');
+      const takerBtn = document.getElementById('form-ordertype-taker');
+      if (val === 'Maker') {
+        makerBtn.className = "flex-1 py-2 rounded-lg border border-[#58A6FF] bg-[#1F3A60] text-white font-bold text-xs transition-all";
+        takerBtn.className = "flex-1 py-2 rounded-lg border border-[#30363D] bg-[#21262D] text-white font-bold text-xs transition-all";
+      } else {
+        makerBtn.className = "flex-1 py-2 rounded-lg border border-[#30363D] bg-[#21262D] text-white font-bold text-xs transition-all";
+        takerBtn.className = "flex-1 py-2 rounded-lg border border-[#58A6FF] bg-[#1F3A60] text-white font-bold text-xs transition-all";
+      }
+    }
+
+    function setTradeFormLeverage(val) {
+      formLeverage = val;
+      renderOptions();
+    }
+
+    function setTradeFormHold(val) {
+      formHold = val;
+      renderOptions();
+    }
+
+    function setTradeFormAsset(val) {
+      formAsset = val;
+      renderOptions();
+    }
+
+    // Trade Modal Handlers
+    function openTradeModal() {
+      editingId = null;
+      document.getElementById('modalTradeTitle').innerText = '📝 កត់ត្រា Trade ថ្មី (UTC+7)';
+      document.getElementById('inputCapital').value = '';
+      document.getElementById('inputPnL').value = '';
+      setTradeFormOutcome('WIN');
+      setTradeFormPlatform('arcus');
+      setTradeFormOrderType('Maker');
+      setTradeFormLeverage('3x');
+      setTradeFormHold('4h');
+      setTradeFormAsset('NVDIA');
+      document.getElementById('tradeModal').classList.remove('hidden');
+    }
+
+    function closeTradeModal() {
+      document.getElementById('tradeModal').classList.add('hidden');
+    }
+
+    function saveTradeForm() {
+      const inputCapVal = document.getElementById('inputCapital').value;
+      if (!inputCapVal) {
+        showAlert('សូមបំពេញទិន្នន័យ', 'សូមបញ្ចូល Capital Fund ជាមុនសិន!');
+        return;
+      }
+
+      const cap = parseFloat(inputCapVal);
+      const levNum = parseFloat(formLeverage.replace('x', ''));
+      const calculatedVolume = cap * levNum;
+
+      let feeRate = 0;
+      if (formPlatform === 'arcus') {
+        feeRate = formOrderType === 'Taker' ? 0.00025 : 0;
+      } else {
+        feeRate = formOrderType === 'Taker' ? 0.00009 : 0.00003;
+      }
+
+      const calculatedSpend = calculatedVolume * feeRate;
+      const inputPnLVal = document.getElementById('inputPnL').value;
+      const pnlValue = inputPnLVal ? parseFloat(inputPnLVal) : 0;
+      const timestampStr = getLocalTimePlus7String();
+
+      if (editingId) {
+        tradeLogs = tradeLogs.map(item => {
+          if (item.id === editingId) {
+            return {
+              ...item,
+              platform: formPlatform,
+              capital: cap,
+              leverage: formLeverage,
+              volume: calculatedVolume,
+              asset: formAsset,
+              holdDuration: formHold,
+              outcome: formOutcome,
+              orderType: formOrderType,
+              spend: calculatedSpend,
+              pnl: pnlValue,
+              dateTime: timestampStr,
+            };
+          }
+          return item;
+        });
+        saveData(tradeLogs, null, null);
+        editingId = null;
+        showAlert('ជោគជ័យ! 🎉', 'បានកែប្រែ Trade រួចរាល់!');
+      } else {
+        const newEntry = {
+          id: Date.now().toString(),
+          dateTime: timestampStr,
+          platform: formPlatform,
+          capital: cap,
+          leverage: formLeverage,
+          volume: calculatedVolume,
+          asset: formAsset,
+          holdDuration: formHold,
+          outcome: formOutcome,
+          orderType: formOrderType,
+          spend: calculatedSpend,
+          pnl: pnlValue,
+        };
+        tradeLogs = [newEntry, ...tradeLogs];
+        saveData(tradeLogs, null, null);
+        showAlert('ជោគជ័យ! 🎉', 'បានកត់ត្រា Trade រួចរាល់!');
+      }
+
+      closeTradeModal();
+      updateUI();
+    }
+
+    function editTrade(id) {
+      const log = tradeLogs.find(l => l.id === id);
+      if (!log) return;
+      editingId = log.id;
+      document.getElementById('modalTradeTitle').innerText = '✏️ កែប្រែ Trade';
+      document.getElementById('inputCapital').value = log.capital;
+      document.getElementById('inputPnL').value = log.pnl !== undefined ? log.pnl : '';
+      
+      setTradeFormOutcome(log.outcome);
+      setTradeFormPlatform(log.platform);
+      setTradeFormOrderType(log.orderType);
+      setTradeFormLeverage(log.leverage);
+      setTradeFormHold(log.holdDuration);
+      setTradeFormAsset(log.asset);
+
+      document.getElementById('tradeModal').classList.remove('hidden');
+    }
+
+    function deleteTrade(id) {
+      showAlert(
+        'លុបទិន្នន័យ',
+        'តើអ្នកចង់លុបទិន្នន័យនេះមែនទេ? (អាចស្តារឡើងវិញបានក្នុង Trash)',
+        true,
+        () => {
+          const itemToDelete = tradeLogs.find(item => item.id === id);
+          tradeLogs = tradeLogs.filter(item => item.id !== id);
+          trashBin = [{ ...itemToDelete, type: 'Trade' }, ...trashBin];
+
+          saveData(tradeLogs, null, trashBin);
+          updateUI();
+        }
+      );
+    }
+
+    // Points Modal Handlers
+    function openPointModal() {
+      document.getElementById('inputArcusPoints').value = '';
+      document.getElementById('inputEntropyPoints').value = '';
+      document.getElementById('pointModal').classList.remove('hidden');
+    }
+
+    function closePointModal() {
+      document.getElementById('pointModal').classList.add('hidden');
+    }
+
+    function savePointsForm() {
+      const arcusPts = document.getElementById('inputArcusPoints').value;
+      const entropyPts = document.getElementById('inputEntropyPoints').value;
+      const weekName = document.getElementById('inputWeekName').value || 'Weekly Points';
+
+      if (!arcusPts && !entropyPts) {
+        showAlert('សូមបំពេញទិន្នន័យ', 'សូមបំពេញចំនួន Points យ៉ាងហោចណាស់១ platform!');
+        return;
+      }
+
+      const newPointEntry = {
+        id: Date.now().toString(),
+        week: weekName,
+        arcus: parseFloat(arcusPts || 0),
+        entropy: parseFloat(entropyPts || 0),
+        dateTime: getLocalTimePlus7String(),
+      };
+
+      weeklyPoints = [newPointEntry, ...weeklyPoints];
+      saveData(null, weeklyPoints, null);
+      closePointModal();
+      updateUI();
+    }
+
+    function deletePoint(id) {
+      const itemToDelete = weeklyPoints.find(item => item.id === id);
+      weeklyPoints = weeklyPoints.filter(item => item.id !== id);
+      trashBin = [{ ...itemToDelete, type: 'Points' }, ...trashBin];
+
+      saveData(null, weeklyPoints, trashBin);
+      updateUI();
+    }
+
+    // Recycle Bin Functions
+    function restoreFromTrash(id) {
+      const item = trashBin.find(t => t.id === id);
+      if (!item) return;
+
+      if (item.type === 'Trade') {
+        tradeLogs = [item, ...tradeLogs];
+        trashBin = trashBin.filter(t => t.id !== id);
+        saveData(tradeLogs, null, trashBin);
+      } else {
+        weeklyPoints = [item, ...weeklyPoints];
+        trashBin = trashBin.filter(t => t.id !== id);
+        saveData(null, weeklyPoints, trashBin);
+      }
+
+      showAlert('ជោគជ័យ! ♻️', 'បានស្តារទិន្នន័យឡើងវិញជោគជ័យ!');
+      updateUI();
+    }
+
+    function deleteForever(id) {
+      showAlert(
+        'លុបជាស្ថាពរ',
+        'តើអ្នកពិតជាចង់លុបចោលទិន្នន័យនេះជាស្ថាពរមែនទេ?',
+        true,
+        () => {
+          trashBin = trashBin.filter(t => t.id !== id);
+          saveData(null, null, trashBin);
+          updateUI();
+        }
+      );
+    }
+  </script>
+</body>
+</html>
